@@ -1,6 +1,3 @@
-virtualenv env_voicefixer # create new environment
-source env_voicefixer/bin/activate # activate environment
-
 pip3 install -r requirements.txt # install requirements
 pip3 install torch==1.8.1 torchaudio==0.8.1 pytorch_lightning==1.5.0
 pip3 install git+https://github.com/aliutkus/speechmetrics#egg=speechmetrics[cpu]

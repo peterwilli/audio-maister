@@ -9,6 +9,7 @@ from tools.pytorch.random_ import *
 from tools.file.wav import *
 from dataloaders.augmentation.base import add_noise_and_scale_with_HQ_with_Aug
 from tools.utils import trim_center
+import lightning as L
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 class BN_GRU(torch.nn.Module):
@@ -90,7 +91,7 @@ class Generator(nn.Module):
         mel = out + to_log(mel_orig)
         return {'mel': mel}
 
-class VoiceFixer(pl.LightningModule):
+class VoiceFixer(L.LightningModule):
     def __init__(self, hp, channels, type_target):
         super(VoiceFixer, self).__init__()
 
@@ -206,6 +207,8 @@ class VoiceFixer(pl.LightningModule):
     def preprocess(self, batch, train=False, cutoff=None):
         if(train):
             vocal = batch[self.type_target] # final target
+            for i in range(vocal.shape[0]):
+                vocal[i, ...] *= torch.zeros_like(vocal[i, ...]).fill_(random.uniform(0.1, 1))
             noise = batch['noise_LR'] # augmented low resolution audio with noise
             augLR = batch[self.type_target+'_aug_LR'] # # augment low resolution audio
             LR = batch[self.type_target+'_LR']

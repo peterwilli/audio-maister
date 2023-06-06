@@ -15,9 +15,9 @@
     "ssr":{
       "ssr_task": {
         "dereverberation": false,
-        "denoising": false,
-        "declipping": false,
-        "super_resolution": false
+        "denoising": true,
+        "declipping": true,
+        "super_resolution": true
       },
       "ssr_model": {
         "unet": false
@@ -33,7 +33,7 @@
     "resume_from_checkpoint": "",
     "check_val_every_n_epoch": 2,
     "seed": 1234,
-    "num_works": 38,
+    "num_works": 2,
     "max_epoches": 5000,
     "hours_of_data_for_an_epoch": 300,
     "learning_rate": 0.0005,

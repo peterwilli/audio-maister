@@ -1,4 +1,3 @@
-import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 from dataloaders.dataloader.FixLengthAugRandomDataLoader import FixLengthAugRandomDataLoader
 from dataloaders.dataloader.PairedFullLengthDataLoader import PairedFullLengthDataLoader
@@ -10,6 +9,7 @@ from tools.pytorch.random_ import *
 import torch
 from scipy.signal import butter, lfilter
 from tools.pytorch.random_ import uniform_torch
+import lightning.pytorch as pl
 
 class LowpassTrainCollator(object):
     def __init__(self, hp):

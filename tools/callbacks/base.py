@@ -1,7 +1,5 @@
-from pytorch_lightning.callbacks import Callback
+
 import torch.nn as nn
-import pytorch_lightning as pl
-from pytorch_lightning.utilities import rank_zero_only
 import logging as lg
 from tools.logger.logger import setup_logging
 from tools.file.io import *
@@ -11,6 +9,9 @@ import git
 import os
 import os.path
 import re
+import lightning as L
+from lightning.pytorch.callbacks import Callback
+from lightning.pytorch.utilities import rank_zero_only
 
 class initLogDir(Callback):
     """
@@ -31,10 +32,10 @@ class initLogDir(Callback):
         self.current_dir = current_dir
         os.system("rm temp_path.json") # To avoid the previous .json file to affect this experiment
 
-    def get_log_dir(self, pl_module: pl.LightningModule) -> str:
+    def get_log_dir(self, pl_module: L.LightningModule) -> str:
         return pl_module.logger.experiment.log_dir
 
-    def code_backup(self, pl_module: pl.LightningModule):
+    def code_backup(self, pl_module: L.LightningModule):
         # dir_save_code = os.path.join(pl_module.log_dir,"code")
         # os.makedirs(dir_save_code,exist_ok=True)
         # for file in glob.glob(os.path.join("*.sh")) + glob.glob(os.path.join("*.py")) + glob.glob(os.path.join("../*.py")) + glob.glob(os.path.join("../../*.py")):
@@ -46,7 +47,7 @@ class initLogDir(Callback):
         sha = repo.head.object.hexsha
         os.system("echo "+sha+ " >> "+os.path.join(pl_module.log_dir,"git_version"))
 
-    def init_path(self, trainer, pl_module: pl.LightningModule):
+    def init_path(self, trainer, pl_module: L.LightningModule):
         try:
             # If pl_module don't have this attribute
             if(not hasattr(pl_module,"log_dir")):
@@ -71,10 +72,10 @@ class initLogDir(Callback):
         # Logging directory
         setup_logging(save_dir=os.path.join(pl_module.log_dir, "log"))
 
-    def on_train_start(self, trainer, pl_module: pl.LightningModule) -> None:
+    def on_train_start(self, trainer, pl_module: L.LightningModule) -> None:
         self.init_path(trainer,pl_module)
 
-    def on_validation_start(self, trainer, pl_module: pl.LightningModule) -> None:
+    def on_validation_start(self, trainer, pl_module: L.LightningModule) -> None:
         if(not hasattr(pl_module,"val_step")):
             raise AttributeError("pl_module need to have attribute val_step (track how many validation epoches have been done) set to use LogDir Callback")
         if(not hasattr(pl_module,"check_val_every_n_epoch")):
@@ -90,11 +91,11 @@ class initLogDir(Callback):
         pl_module.val_result_save_dir_step = os.path.join(pl_module.val_result_save_dir,str(pl_module.val_step * pl_module.check_val_every_n_epoch))
         os.makedirs(pl_module.val_result_save_dir_step, exist_ok=True)
 
-    def on_test_start(self, trainer, pl_module: pl.LightningModule) -> None:
+    def on_test_start(self, trainer, pl_module: L.LightningModule) -> None:
         self.init_path(trainer,pl_module)
 
     # @rank_zero_only
-    # def on_train_epoch_end(self, trainer, pl_module: pl.LightningModule, outputs) -> None:
+    # def on_train_epoch_end(self, trainer, pl_module: L.LightningModule, outputs) -> None:
     #     print("Working Directory:", os.getcwd())
 
 
@@ -103,6 +104,6 @@ class ArgsSaver(Callback):
         self.args = args
 
     @rank_zero_only
-    def on_epoch_start(self, trainer, pl_module: pl.LightningModule) -> None:
+    def on_epoch_start(self, trainer, pl_module: L.LightningModule) -> None:
         if( not os.path.exists(os.path.join(pl_module.log_dir,"args.json") ) ):
             save_pickle(self.args, os.path.join(pl_module.log_dir,"args.pkl") )
