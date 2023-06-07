@@ -38,3 +38,7 @@ WavAugment
 *.pyc
 *.txt
 
+# Tmp dataset folders
+/.dataset_gen_cache
+/logs
+/tmp_hf_dataset_train

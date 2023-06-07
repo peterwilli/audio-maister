@@ -7,6 +7,20 @@ from dataloaders.dataloader.utils import *
 from dataloaders.augmentation.base import AudioAug
 import os
 import time
+import gc
+import psutil
+import math
+
+def clean_when_over_max_mem(max_mem: int):
+    # Get the current memory usage
+    pid = os.getpid()
+    process = psutil.Process(pid)
+    mem_info = process.memory_info()
+    used_memory = math.floor(mem_info.rss / 1024 / 1024)
+    print(f"[{pid}] used_memory: {used_memory}")
+    if used_memory > max_mem:
+        print(f"[{pid}] cleaning")
+        gc.collect()
 
 class FixLengthAugRandomDataLoader(Dataset):
     '''
@@ -39,7 +53,6 @@ class FixLengthAugRandomDataLoader(Dataset):
         :param aug_effects: the effects to take, for example: ['tempo','pitch'].
         """
         print(data)
-        self.init_processes = []
         self.overlap_num = overlap_num
         self.sample_rate = sample_rate
         self.hours_for_an_epoch = hours_for_an_epoch
@@ -79,19 +92,9 @@ class FixLengthAugRandomDataLoader(Dataset):
             # assert torch.sum(torch.isnan(segment)) < 1, fname
         return trunk
 
-    def set_seed(self,seed):
-        np.random.seed(seed)
-        torch.manual_seed(seed)
-        random.seed(seed)
-
     def __getitem__(self, item):
         # [samples, channels], 2**15, int
         data = {}
-
-        if(os.getpid() not in self.init_processes):
-            self.init_processes.append(os.getpid())
-            self.set_seed(os.getpid())
-
         for k in self.data_all.keys():
             wave_samples = []
             for _ in range(self.overlap_num):
@@ -104,6 +107,7 @@ class FixLengthAugRandomDataLoader(Dataset):
                 data[k+"_aug"] = self.aug.perform(frames=data[k],effects=self.aug_effects)
                 data[k+"_aug"] = torch.tensor(data[k+"_aug"].astype(np.float32))
                 data[k+"_aug"] = constrain_length_torch(data[k+"_aug"][...,None], int(self.sample_rate * self.frame_length))
+        # clean_when_over_max_mem(4000)
         return data
 
     def __len__(self):

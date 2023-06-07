@@ -14,6 +14,7 @@ import lightning.pytorch as pl
 class LowpassTrainCollator(object):
     def __init__(self, hp):
         self.hp = hp
+        self.to_keep = ["vocals"]
 
     def __call__(self, batch):
         keys = list(batch[0].keys())  # vocals
@@ -31,18 +32,20 @@ class LowpassTrainCollator(object):
             orders.append(int(uniform_torch(lower=self.hp["augment"]["params"]["low_pass_2"]["filter_order_range"][0],
                                             upper=self.hp["augment"]["params"]["low_pass_2"]["filter_order_range"][1])))
             filters.append(random_choose_list(self.hp["augment"]["params"]["low_pass_2"]["filter_type"]))
+            
+        for key in self.to_keep:
+            ret[key] = stack_convert([x[key][..., 0:1] for x in batch])
 
         for key in keys:
             if ("fname" in key):
                 ret[key] = [x[key] for x in batch]
                 continue
-            ret[key] = stack_convert([x[key][..., 0:1] for x in batch])
+            
             if ("vocals" in key):
                 lowpass_data = []
                 for x, c, o, f in zip(batch, cutoffs, orders, filters):
-                    chance = uniform_torch(lower=0, upper=1000)
                     data = lowpass(x[key][..., 0], highcut=c, fs=self.hp["data"]["sampling_rate"], order=o, _type=f)[..., None]
-                    if (int(chance) % 2 == 0):
+                    if random.randint(0, 1) == 0:
                         lowpass_data.append(
                             lowpass(data[..., 0], highcut=c, fs=self.hp["data"]["sampling_rate"], order=o, _type="stft")[
                                 ..., None])
@@ -53,14 +56,13 @@ class LowpassTrainCollator(object):
             if ("noise" in key):
                 lowpass_data = []
                 for x, c, o, f in zip(batch, cutoffs, orders, filters):
-                    chance = uniform_torch(lower=0, upper=1000)
-                    if (int(chance) % 2 == 0):
+                    if random.randint(0, 1) == 0:
                         data = x[key]
                         lowpass_data.append(data)
                     else:
                         data = lowpass(x[key][..., 0], highcut=c, fs=self.hp["data"]["sampling_rate"], order=o, _type=f)[
                             ..., None]
-                        if (int(chance) % 3 == 0):
+                        if random.randint(0, 1) == 0:
                             lowpass_data.append(
                                 lowpass(data[..., 0], highcut=c, fs=self.hp["data"]["sampling_rate"], order=o, _type="stft")[
                                     ..., None])
@@ -88,6 +90,7 @@ class SrRandSampleRate(pl.LightningDataModule):
         for k in hp["data"]["val_dataset"].keys():
             datasets+=list(hp["data"]["val_dataset"][k].keys())
         self.val_datasets = list(set(datasets))
+        
     def setup(self, stage = None):
         if(stage == 'fit' or stage is None):
             self.train = eval(self.train_loader)(frame_length=self.hp["train"]["input_segment_length"],

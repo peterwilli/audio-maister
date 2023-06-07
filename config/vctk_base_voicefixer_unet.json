@@ -31,11 +31,11 @@
   },
   "train": {
     "resume_from_checkpoint": "",
-    "check_val_every_n_epoch": 2,
+    "check_val_every_n_epoch": 1,
     "seed": 1234,
-    "num_works": 2,
+    "num_works": 10,
     "max_epoches": 5000,
-    "hours_of_data_for_an_epoch": 300,
+    "hours_of_data_for_an_epoch": 24,
     "learning_rate": 0.0005,
     "lr_decay": 0.90,
     "input_segment_length": 3.0,
@@ -44,7 +44,7 @@
     "batch_size": 24,
     "warmup_steps": 100,
     "reduce_lr_every_n_steps":40000,
-    "save_top_k": -1
+    "save_top_k": 5
   },
   "data": {
     "source_types": ["vocals","noise"],

@@ -1,8 +1,8 @@
 pip3 install -r requirements.txt # install requirements
-pip3 install torch==1.8.1 torchaudio==0.8.1 pytorch_lightning==1.5.0
+pip3 install lightning
 pip3 install git+https://github.com/aliutkus/speechmetrics#egg=speechmetrics[cpu]
 pip3 install GitPython
-sudo apt-get install libsox-fmt-all libsox-dev sox
+sudo apt-get install -y libsox-fmt-all libsox-dev sox
 python3 -m pip install git+https://github.com/facebookresearch/WavAugment.git
 
 if ! [ -x "$(command -v unzip)" ]; then

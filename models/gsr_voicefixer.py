@@ -207,9 +207,11 @@ class VoiceFixer(L.LightningModule):
     def preprocess(self, batch, train=False, cutoff=None):
         if(train):
             vocal = batch[self.type_target] # final target
+            batch_size = vocal.shape[0]
             for i in range(vocal.shape[0]):
                 vocal[i, ...] *= torch.zeros_like(vocal[i, ...]).fill_(random.uniform(0.1, 1))
             noise = batch['noise_LR'] # augmented low resolution audio with noise
+            noise = noise[torch.randperm(batch_size)]
             augLR = batch[self.type_target+'_aug_LR'] # # augment low resolution audio
             LR = batch[self.type_target+'_LR']
             # embed()
@@ -229,27 +231,17 @@ class VoiceFixer(L.LightningModule):
                 low_quality = batch["noisy"]
                 vocals = batch["vocals"]
                 vocals, LR_noisy = vocals.float().permute(0, 2, 1), low_quality.float().permute(0, 2, 1)
-                return vocals, vocals, LR_noisy, batch['fname'][0]
+                return vocals, vocals, LR_noisy
             else:
                 LR_noisy = batch["noisy"+"LR"+"_"+str(cutoff)]
                 LR = batch["vocals" + "LR" + "_" + str(cutoff)]
                 vocals = batch["vocals"]
                 vocals, LR, LR_noisy = vocals.float().permute(0, 2, 1), LR.float().permute(0, 2, 1), LR_noisy.float().permute(0, 2, 1)
-                return vocals, LR, LR_noisy, batch['fname'][0]
+                return vocals, LR, LR_noisy
 
 
     def training_step(self, batch, batch_nb):
-
         self.vocal, _, _, self.low_quality = self.preprocess(batch, train=True)
-
-        # inspect the training data
-        if(self.hp["task"]["inspect_training_data"] and self.train_step < 10):
-            sample_training_data_save_path = os.path.join(self.hp.model_dir,"training_data_sample")
-            if(not os.path.exists(sample_training_data_save_path)):
-                os.makedirs(sample_training_data_save_path, exist_ok=True)
-            for i in range(self.vocal.size()[0]):
-                save_wave(tensor2numpy(self.vocal[i, ...]), os.path.join(sample_training_data_save_path, str(i) + "vocal.wav"), sample_rate=44100)
-                save_wave(tensor2numpy(self.low_quality[i, ...]), os.path.join(sample_training_data_save_path, str(i) + "low_quality.wav"), sample_rate=44100)
 
         _, self.mel_target = self.pre(self.vocal)
         _, self.mel_low_quality = self.pre(self.low_quality)
@@ -261,11 +253,14 @@ class VoiceFixer(L.LightningModule):
         self.log("targ_l", targ_loss, on_step=True, on_epoch=False, logger=True, sync_dist=True, prog_bar=True)
         loss = targ_loss
         self.train_step += 1.0
+        
         return {"loss": loss}
 
 
     def validation_step(self, batch, batch_idx):
-        vocal, _, low_quality, fname  = self.preprocess(batch, train=False)
+        vocal, _, low_quality  = self.preprocess(batch, train=False)
+        batch_size = batch['noisy'].shape[0]
+        fname = [f"{batch_idx}_{i}" for i in range(batch_size)]
         _, mel_target = self.pre(vocal)
         _, mel_low_quality = self.pre(low_quality)
         estimation = self(mel_low_quality)['mel']

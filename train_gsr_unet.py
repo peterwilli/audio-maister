@@ -56,7 +56,8 @@ callbacks = []
 checkpoint_callback = ModelCheckpoint(
                       filename='{epoch}-{step}-{val_l:.2f}',
                       dirpath=os.path.join(logger.log_dir,"checkpoints"),
-                      save_top_k=hp["train"]["save_top_k"]
+                      save_top_k=hp["train"]["save_top_k"],
+                      every_n_train_steps=100
                   )
 callbacks.extend([
                   LearningRateMonitor(logging_interval='step'),
