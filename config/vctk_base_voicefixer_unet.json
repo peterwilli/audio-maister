@@ -34,7 +34,7 @@
     "check_val_every_n_epoch": 1,
     "seed": 1234,
     "num_works": 10,
-    "max_epoches": 5000,
+    "max_epoches": 32,
     "hours_of_data_for_an_epoch": 24,
     "learning_rate": 0.0005,
     "lr_decay": 0.90,
@@ -47,13 +47,16 @@
     "save_top_k": 5
   },
   "data": {
-    "source_types": ["vocals","noise"],
+    "source_types": ["vocals","noise","effect"],
     "train_dataset":{
         "vocals":{
             "vctk": "dataIndex/vctk/train/speech.lst"
         },
         "noise": {
             "vd_noise": "dataIndex/vd_noise/vd_noise.lst"
+        },
+        "effect": {
+            "freesound_effects": "dataIndex/freesound_effects/freesound.lst"
         }
     },
     "val_dataset":{
@@ -77,8 +80,8 @@
     "channels_in": 1
   },
   "augment": {
-    "source": "vocals",
-    "effects": ["low_pass", "clip", "reverb_rir"],
+    "source": ["vocals", "effect"],
+    "effects": ["low_pass", "reverb_rir", "clip"],
     "params": {
         "rir_root": "datasets/se/RIR_44k/train",
         "scale": {
@@ -87,7 +90,7 @@
         },
         "noise": {
           "prob": [1.0],
-          "snr_range": [-5,40]
+          "snr_range": [0, 0.3]
         },
         "fade": {
             "prob": [0.1],
@@ -114,16 +117,16 @@
             "room_size": [0, 100]
         },
         "reverb_rir": {
-            "prob": [0.30],
+            "prob": [0.5],
             "rir_file_name": ""
         },
         "low_pass_1": {
             "prob": [0.25],
-            "low_pass_range": [4000, 22000]
+            "low_pass_range": [500, 22000]
         },
        "low_pass_2": {
             "prob": [1.0],
-            "low_pass_range": [1500, 44100],
+            "low_pass_range": [4000, 44100],
             "filter_order_range": [2,10],
             "filter_type": ["cheby1", "ellip", "bessel", "stft_hard", "stft", "butter"]
         },
@@ -132,14 +135,90 @@
             "high_pass_range": [500, 2000]
         },
         "clip": {
-            "prob": [0.20],
-            "louder_time": [1.0, 11.0]
+            "prob": [0.25],
+            "louder_time": [1.0, 8.0]
         },
         "time_dropout": {
             "prob": [0.0],
             "max_segment": 0.1,
             "drop_range": [0.0, 1.0]
         }
+    }
+  },
+  "augment_global": {
+    "source": ["vocals", "effect"],
+    "effects": ["pitch", "tempo", "speed", "treble", "bass"],
+    "params": {
+      "rir_root": "datasets/se/RIR_44k/train",
+      "scale": {
+        "prob": [0,0],
+        "scale_range": [0.3, 1.0]
+      },
+      "noise": {
+        "prob": [0.0],
+        "snr_range": [0, 0.3]
+      },
+      "tempo": {
+        "prob":[0.5,0.5],
+        "speed_up_range": [1.01,1.3],
+        "speed_down_range": [0.95,0.99]
+      },
+      "speed": {
+        "prob":[0.5,0.5],
+        "speed_up_range": [1.01,1.3],
+        "speed_down_range": [0.95,0.99]
+      },
+      "fade": {
+          "prob": [0.0],
+          "fade_in_portion": [0.1, 0.3],
+          "fade_out_portion": [0.1, 0.3]
+      },
+      "pitch": {
+          "prob": [1.0, 0.5],
+          "pitch_up_range": [100, 350],
+          "pitch_down_range": [-350, -100]
+      },
+      "treble": {
+          "prob": [0],
+          "level": [-10, 10]
+      },
+      "bass": {
+          "prob": [0],
+          "level": [-10, 10]
+      },
+      "reverb_freeverb": {
+          "prob": [0.0],
+          "reverb_level": [0, 50],
+          "dumping_factor": [0, 100],
+          "room_size": [0, 100]
+      },
+      "reverb_rir": {
+          "prob": [0.0],
+          "rir_file_name": ""
+      },
+      "low_pass_1": {
+          "prob": [0.0],
+          "low_pass_range": [4000, 22000]
+      },
+     "low_pass_2": {
+          "prob": [0.0],
+          "low_pass_range": [1500, 44100],
+          "filter_order_range": [2,10],
+          "filter_type": ["cheby1", "ellip", "bessel", "stft_hard", "stft", "butter"]
+      },
+      "high_pass": {
+          "prob": [0.0],
+          "high_pass_range": [500, 2000]
+      },
+      "clip": {
+          "prob": [0.0],
+          "louder_time": [1.0, 5.0]
+      },
+      "time_dropout": {
+          "prob": [0.0],
+          "max_segment": 0.1,
+          "drop_range": [0.0, 1.0]
+      }
     }
   }
 }

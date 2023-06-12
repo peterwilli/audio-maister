@@ -41,6 +41,9 @@ class FixLengthAugRandomDataLoader(Dataset):
                  aug_conf = None,
                  aug_sources = [],
                  aug_effects = [],
+                 aug_global_conf = None,
+                 aug_global_sources = [],
+                 aug_global_effects = [],
                  hours_for_an_epoch = 10,
                  ):
         """
@@ -64,9 +67,14 @@ class FixLengthAugRandomDataLoader(Dataset):
             for k in type_of_sources:
                 self.data_all[k] = construct_data_folder(data[k])
         self.frame_length = frame_length
+
         self.aug = AudioAug(config=aug_conf, sample_rate=self.sample_rate, rir_dir=aug_conf['rir_root'])
         self.aug_sources = aug_sources
         self.aug_effects = aug_effects
+
+        self.aug_global = AudioAug(config=aug_global_conf, sample_rate=self.sample_rate, rir_dir=aug_global_conf['rir_root'])
+        self.aug_global_sources = aug_global_sources
+        self.aug_global_effects = aug_global_effects
 
     def random_fname(self,type, dataset_name = None):
         if(dataset_name is None):
@@ -99,12 +107,19 @@ class FixLengthAugRandomDataLoader(Dataset):
             wave_samples = []
             for _ in range(self.overlap_num):
                 wave_samples.append(self.random_trunk(self.frame_length, type=k))
-            data[k] = np.sum(wave_samples,axis=0)
-            # augmentation
+            data[k] = np.sum(wave_samples, axis=0)
+
+            # global augmentation
             data[k] = torch.tensor(data[k].astype(np.float32))
             data[k] = constrain_length_torch(data[k], int(self.sample_rate * self.frame_length))
+            if(self.aug_global_sources is not None and len(self.aug_global_sources) != 0 and k in self.aug_global_sources):
+                data[k] = self.aug_global.perform(frames=data[k], effects=self.aug_global_effects)
+                data[k] = torch.tensor(data[k].astype(np.float32))
+                data[k] = constrain_length_torch(data[k][...,None], int(self.sample_rate * self.frame_length))
+
+            # augmentation
             if(self.aug_sources is not None and len(self.aug_sources) != 0 and k in self.aug_sources):
-                data[k+"_aug"] = self.aug.perform(frames=data[k],effects=self.aug_effects)
+                data[k+"_aug"] = self.aug.perform(frames=data[k], effects=self.aug_effects)
                 data[k+"_aug"] = torch.tensor(data[k+"_aug"].astype(np.float32))
                 data[k+"_aug"] = constrain_length_torch(data[k+"_aug"][...,None], int(self.sample_rate * self.frame_length))
         # clean_when_over_max_mem(4000)

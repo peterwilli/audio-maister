@@ -194,6 +194,25 @@ def convert_flac_to_wav(dir):
         pbar.update(int((i / (len(files) - 1)) * 100))
     pbar.finish()
 
+def convert_any_to_wav(dir):
+    files = glob.glob(os.path.join(dir, "*.*")) + \
+                glob.glob(os.path.join(dir, "*/*.*")) + \
+                glob.glob(os.path.join(dir, "*/*/*.*")) + \
+                glob.glob(os.path.join(dir, "*/*/*/*.*")) + glob.glob(os.path.join(dir, "*/*/*/*/*.*"))
+    widgets = [
+        "Convert any to wav",
+        ' [', Timer(), '] ',
+        Bar(),
+        ' (', ETA(), ') ',
+    ]
+    pbar = ProgressBar(widgets=widgets).start()
+    for i,path in enumerate(files):
+        cmd = f"ffmpeg -i \"{path}\" -acodec pcm_s16le -ar 44100 -ac 2 \"{path}.wav\""
+        os.system(cmd)
+        os.remove(path)
+        pbar.update(int((i / (len(files) - 1)) * 100))
+    pbar.finish()
+
 
 def convert_wav_to_flac(dir):
     current = "wav"

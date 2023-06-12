@@ -18,6 +18,8 @@ import tools.utils
 from tools.dsp.lowpass import *
 from models.gsr_voicefixer import VoiceFixer
 import datasets
+from tools.others.audio_op import normalize_energy_torch
+from tools.data_processing import AudioPreprocessing
 
 if not torch.cuda.is_available():
     raise RuntimeError("Hi bro, you need GPUs to run this program.")
@@ -45,36 +47,68 @@ hp["augment"]["params"]["rir_root"] = os.path.join(
 
 args = parser.parse_args()
 
-nvmlInit()
-gpu_nums = int(nvmlDeviceGetCount())
-model = VoiceFixer(hp, channels=1, type_target="vocals")
-dm = PreProcessedDataModule(
-    # datasets.load_dataset("peterwilli/audio-maister-test")['train'],
-    datasets.load_from_disk("./tmp_hf_dataset_train")['train'],
-    datasets.load_dataset("peterwilli/audio-maister-val")['val'],
-    batch_size=hp["train"]["batch_size"]
-)
-torch.set_float32_matmul_precision("medium")
-logger = TensorBoardLogger(os.path.dirname(hp.model_dir), name=os.path.basename(hp.model_dir))
-checkpoint_callback = ModelCheckpoint(
-    filename="{epoch}-{step}-{val_l:.2f}",
-    save_top_k=hp["train"]["save_top_k"],
-    monitor="targ_l",
-    every_n_train_steps=100
-)
-lr_monitor = LearningRateMonitor(logging_interval='step')
+def inspect_dataset(dm):
+    from tools.file.wav import save_wave
+    ap = AudioPreprocessing()
+    for i, batch in enumerate(dm.train_dataloader()):
+        sample_training_data_save_path = "training_data_sample"
+        if(not os.path.exists(sample_training_data_save_path)):
+            os.makedirs(sample_training_data_save_path, exist_ok=True)
+        batch, individuals = ap.preprocess_train(batch, return_individual=True)
+        for k in batch:
+            for i in range(batch[k].size()[0]):
+                save_wave(batch[k][i, ...].numpy(), os.path.join(sample_training_data_save_path, f"{i}_{k}.wav"), sample_rate=44100)
+                save_wave(batch[k][i, ...].numpy(), os.path.join(sample_training_data_save_path, f"{i}_{k}.wav"), sample_rate=44100)
+        for k in individuals:
+            for i in range(individuals[k].size()[0]):
+                save_wave(individuals[k][i, ...].numpy(), os.path.join(sample_training_data_save_path, f"{i}_{k}.wav"), sample_rate=44100)
+                save_wave(individuals[k][i, ...].numpy(), os.path.join(sample_training_data_save_path, f"{i}_{k}.wav"), sample_rate=44100)
+        break
 
-trainer = L.Trainer(
-    accelerator="gpu",
-    devices=1,
-    logger=logger,
-    callbacks=[initLogDir(hp, current_dir=os.getcwd()), checkpoint_callback, lr_monitor],
-    max_epochs=hp["train"]["max_epoches"],
-    detect_anomaly=True,
-    num_sanity_val_steps=2,
-    sync_batchnorm=True,
-    check_val_every_n_epoch=hp["train"]["check_val_every_n_epoch"],
-    log_every_n_steps=hp["log"]["log_every_n_steps"],
-)
-dm.setup("fit")
-trainer.fit(model, datamodule=dm)
+def main():
+    nvmlInit()
+    gpu_nums = int(nvmlDeviceGetCount())
+    # model = VoiceFixer(hp, channels=1, type_target="vocals")
+    model = VoiceFixer.load_from_checkpoint("last_model.ckpt")
+    train_dataset = datasets.load_from_disk("./tmp_hf_dataset_train")['train']
+    #train_dataset = datasets.load_dataset("peterwilli/audio-maister-test")['train'],
+    dm = PreProcessedDataModule(
+        train_dataset,
+        datasets.load_dataset("peterwilli/audio-maister-val")['val'],
+        batch_size=hp["train"]["batch_size"]
+    )
+    print("Inspecting data")
+    inspect_dataset(dm)
+    print("Inspecting data done")
+
+    train_dataset.push_to_hub("peterwilli/audio-maister-test")
+    return
+        
+    torch.set_float32_matmul_precision("medium")
+    logger = TensorBoardLogger(os.path.dirname(hp.model_dir), name=os.path.basename(hp.model_dir))
+    checkpoint_callback = ModelCheckpoint(
+        filename="{epoch}-{step}-{val/loss:.2f}",
+        save_top_k=hp["train"]["save_top_k"],
+        monitor="val/loss",
+        save_last=True,
+        every_n_train_steps=100
+    )
+    lr_monitor = LearningRateMonitor(logging_interval='step')
+
+    trainer = L.Trainer(
+        accelerator="gpu",
+        devices=1,
+        logger=logger,
+        callbacks=[checkpoint_callback, lr_monitor],
+        max_epochs=hp["train"]["max_epoches"],
+        detect_anomaly=True,
+        num_sanity_val_steps=2,
+        sync_batchnorm=True,
+        check_val_every_n_epoch=hp["train"]["check_val_every_n_epoch"],
+        log_every_n_steps=hp["log"]["log_every_n_steps"],
+    )
+    dm.setup("fit")
+    trainer.fit(model, datamodule=dm)
+
+if __name__ == "__main__":
+    main()

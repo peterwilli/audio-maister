@@ -12,7 +12,6 @@ from dataloaders.augmentation.random_server import RandomServer
 from tools.others.audio_op import smooth
 import os.path as op
 from os import listdir
-from tools.pytorch.random_ import random_select
 
 class MagicalEffects:
     def __init__(self, p_effects, rir_dir=None):

@@ -10,7 +10,8 @@ from tools.file.wav import *
 from dataloaders.augmentation.base import add_noise_and_scale_with_HQ_with_Aug
 from tools.utils import trim_center
 import lightning as L
-os.environ['KMP_DUPLICATE_LIB_OK']='True'
+from tools.data_processing import AudioPreprocessing
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
 class BN_GRU(torch.nn.Module):
     def __init__(self,input_dim,hidden_dim,layer=1, bidirectional=False, batchnorm=True, dropout=0.0):
@@ -95,6 +96,7 @@ class VoiceFixer(L.LightningModule):
     def __init__(self, hp, channels, type_target):
         super(VoiceFixer, self).__init__()
 
+        self.val_step = 0
         self.lr = hp["train"]["learning_rate"]
         self.gamma = hp["train"]["lr_decay"]
         self.batch_size = hp["train"]["batch_size"]
@@ -103,23 +105,15 @@ class VoiceFixer(L.LightningModule):
         self.check_val_every_n_epoch = hp["train"]["check_val_every_n_epoch"]
         self.warmup_steps = hp["train"]["warmup_steps"]
         self.reduce_lr_every_n_steps = hp["train"]["reduce_lr_every_n_steps"]
-
+        self.ap = AudioPreprocessing()
         self.save_hyperparameters()
         self.type_target = type_target
         self.channels = channels
-        self.generated = None
+        
         # self.hparams['channels'] = 2
         self.simelspecloss = get_loss_function(loss_type="simelspec")
         self.l1loss = get_loss_function(loss_type="l1")
         self.vocoder = Vocoder(sample_rate=44100)
-
-        self.valid = None
-        self.fake = None
-
-        self.train_step = 0
-        self.val_step = 0
-        self.val_result_save_dir = None
-        self.val_result_save_dir_step = None
         self.downsample_ratio = 2 ** 6  # This number equals 2^{#encoder_blcoks}
 
         self.f_helper = FDomainHelper(
@@ -138,11 +132,6 @@ class VoiceFixer(L.LightningModule):
 
         # masking
         self.generator = Generator(hp)
-
-        self.lr_lambda = lambda step: self.get_lr_lambda(step,
-                                                         gamma = self.gamma,
-                                                         warmup_steps=self.warmup_steps,
-                                                         reduce_lr_every_n_steps=self.reduce_lr_every_n_steps)
         self.hp = hp
 
     def get_vocoder(self):
@@ -150,31 +139,6 @@ class VoiceFixer(L.LightningModule):
 
     def get_f_helper(self):
         return self.f_helper
-
-    def get_lr_lambda(self, step, gamma, warmup_steps, reduce_lr_every_n_steps):
-        r"""Get lr_lambda for LambdaLR. E.g.,
-
-        .. code-block: python
-            lr_lambda = lambda step: get_lr_lambda(step, warm_up_steps=1000, reduce_lr_steps=10000)
-
-            from torch.optim.lr_scheduler import LambdaLR
-            LambdaLR(optimizer, lr_lambda)
-        """
-        if step <= warmup_steps:
-            return step / warmup_steps
-        else:
-            return gamma ** (step // reduce_lr_every_n_steps)
-
-    def init_weights(self, module: nn.Module):
-        for m in module.modules():
-            if type(m) in [nn.GRU, nn.LSTM, nn.RNN]:
-                for name, param in m.named_parameters():
-                    if 'weight_ih' in name:
-                        torch.nn.init.xavier_uniform_(param.data)
-                    elif 'weight_hh' in name:
-                        torch.nn.init.orthogonal_(param.data)
-                    elif 'bias' in name:
-                        param.data.fill_(0)
 
     def pre(self, input):
         sp, _, _ = self.f_helper.wav_to_spectrogram_phase(input)
@@ -197,65 +161,36 @@ class VoiceFixer(L.LightningModule):
         optimizer_g = torch.optim.Adam([{'params': self.generator.parameters()}],
                                        lr=self.lr, amsgrad=True, betas=(self.hp["train"]["betas"][0], self.hp["train"]["betas"][1]))
 
+        steps = self.trainer.estimated_stepping_batches
         scheduler_g = {
-            'scheduler': torch.optim.lr_scheduler.LambdaLR(optimizer_g, self.lr_lambda),
+            'scheduler': CosineAnnealingLR(optimizer_g, T_max=steps, eta_min=0),
             'interval': 'step',
             'frequency': 1
         }
         return ([optimizer_g], [scheduler_g])
 
     def preprocess(self, batch, train=False, cutoff=None):
-        if(train):
-            vocal = batch[self.type_target] # final target
-            batch_size = vocal.shape[0]
-            for i in range(vocal.shape[0]):
-                vocal[i, ...] *= torch.zeros_like(vocal[i, ...]).fill_(random.uniform(0.1, 1))
-            noise = batch['noise_LR'] # augmented low resolution audio with noise
-            noise = noise[torch.randperm(batch_size)]
-            augLR = batch[self.type_target+'_aug_LR'] # # augment low resolution audio
-            LR = batch[self.type_target+'_LR']
-            # embed()
-            vocal, LR, augLR, noise = vocal.float().permute(0, 2, 1), LR.float().permute(0, 2, 1), augLR.float().permute(0, 2, 1), noise.float().permute(0, 2, 1)
-            # LR, noise = self.add_random_noise(LR, noise)
-            snr, scale = [],[]
-            for i in range(vocal.size()[0]):
-                vocal[i,...], LR[i,...], augLR[i,...], noise[i,...], _snr, _scale = add_noise_and_scale_with_HQ_with_Aug(vocal[i,...],LR[i,...], augLR[i,...], noise[i,...],
-                                                                                                                         snr_l=self.hp["augment"]["params"]["noise"]["snr_range"][0],
-                                                                                                                         snr_h=self.hp["augment"]["params"]["noise"]["snr_range"][1],
-                                                                                                                         scale_lower=self.hp["augment"]["params"]["scale"]["scale_range"][0],
-                                                                                                                         scale_upper=self.hp["augment"]["params"]["scale"]["scale_range"][1])
-                snr.append(_snr), scale.append(_scale)
-            return vocal, augLR, LR,  noise + augLR
-        else:
+        if not train:
             if(cutoff is None):
                 low_quality = batch["noisy"]
                 vocals = batch["vocals"]
-                vocals, LR_noisy = vocals.float().permute(0, 2, 1), low_quality.float().permute(0, 2, 1)
+                vocals, LR_noisy = vocals, low_quality
                 return vocals, vocals, LR_noisy
             else:
                 LR_noisy = batch["noisy"+"LR"+"_"+str(cutoff)]
                 LR = batch["vocals" + "LR" + "_" + str(cutoff)]
                 vocals = batch["vocals"]
-                vocals, LR, LR_noisy = vocals.float().permute(0, 2, 1), LR.float().permute(0, 2, 1), LR_noisy.float().permute(0, 2, 1)
                 return vocals, LR, LR_noisy
 
-
-    def training_step(self, batch, batch_nb):
-        self.vocal, _, _, self.low_quality = self.preprocess(batch, train=True)
-
-        _, self.mel_target = self.pre(self.vocal)
-        _, self.mel_low_quality = self.pre(self.low_quality)
-
-        self.generated = self(self.mel_low_quality)
-
-        targ_loss = self.l1loss(self.generated['mel'], to_log(self.mel_target))
-
-        self.log("targ_l", targ_loss, on_step=True, on_epoch=False, logger=True, sync_dist=True, prog_bar=True)
-        loss = targ_loss
-        self.train_step += 1.0
-        
-        return {"loss": loss}
-
+    def training_step(self, batch):
+        with torch.no_grad():
+            batch = self.ap.preprocess_train(batch)
+        _, mel_target = self.pre(batch['target'])
+        _, mel_low_quality = self.pre(batch['low_quality'])
+        generated = self.forward(mel_low_quality)
+        target_loss = self.l1loss(generated['mel'], to_log(mel_target))
+        self.log("train/target_loss", target_loss, on_step=True, on_epoch=False, logger=True, sync_dist=True, prog_bar=True)
+        return target_loss
 
     def validation_step(self, batch, batch_idx):
         vocal, _, low_quality  = self.preprocess(batch, train=False)
@@ -265,11 +200,5 @@ class VoiceFixer(L.LightningModule):
         _, mel_low_quality = self.pre(low_quality)
         estimation = self(mel_low_quality)['mel']
         val_loss = self.l1loss(estimation, to_log(mel_target))
-        self.log("val_l", val_loss, on_step=False, on_epoch=True, logger=True, sync_dist=True, prog_bar=True, batch_size=1)
-        if(batch_idx < 5):
-            out = self.vocoder(from_log(estimation))
-            if(torch.max(torch.abs(out)) > 1.0):
-                out = out / torch.max(torch.abs(out))
-            out, _ = trim_center(out, low_quality)
-            save_wave(tensor2numpy(out[0, ...]), fname=os.path.join(self.val_result_save_dir_step,"%s_restored.wav" % (batch_idx)), sample_rate=44100)
-        return {"loss": val_loss}
+        self.log("val/loss", val_loss, on_step=False, on_epoch=True, logger=True, sync_dist=True, prog_bar=True, batch_size=1)
+        return val_loss

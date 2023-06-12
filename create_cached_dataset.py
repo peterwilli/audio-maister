@@ -65,16 +65,16 @@ def main():
     dm = SrRandSampleRate(hp, distributed)
     dm.setup('fit')
     print(f"Total entries: {len(dm.train)}")
-    keys = ['vocals', 'vocals_LR', 'vocals_aug_LR', 'noise_LR']
+    keys = ['vocals', 'vocals_LR', 'effect', 'effect_aug_LR', 'vocals_aug_LR', 'noise_LR']
     dataset = Dataset.from_generator(
         data_gen,
         cache_dir=".dataset_gen_cache",
         gen_kwargs={ 'loader': dm.train_dataloader(), 'keys': keys },
         features=Features({k: Audio() for k in keys}))
     dataset = DatasetDict(train=dataset)
-    # dataset.save_to_disk("tmp_hf_dataset_train")
-    dataset.push_to_hub("peterwilli/audio-maister-test")
-
+    dataset.save_to_disk("tmp_hf_dataset_train")
+    # dataset.push_to_hub("peterwilli/audio-maister-test")
+    return
     keys = ['vocals', 'noisy']
     dataset = Dataset.from_generator(
         data_gen,

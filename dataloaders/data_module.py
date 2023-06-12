@@ -14,7 +14,7 @@ import lightning.pytorch as pl
 class LowpassTrainCollator(object):
     def __init__(self, hp):
         self.hp = hp
-        self.to_keep = ["vocals"]
+        self.to_keep = ["vocals", "effect"]
 
     def __call__(self, batch):
         keys = list(batch[0].keys())  # vocals
@@ -69,6 +69,23 @@ class LowpassTrainCollator(object):
                         else:
                             lowpass_data.append(data)
                 ret[key + "_LR"] = stack_convert(lowpass_data)
+
+            if ("effect" in key):
+                lowpass_data = []
+                for x, c, o, f in zip(batch, cutoffs, orders, filters):
+                    if random.randint(0, 1) == 0:
+                        data = x[key]
+                        lowpass_data.append(data)
+                    else:
+                        data = lowpass(x[key][..., 0], highcut=c, fs=self.hp["data"]["sampling_rate"], order=o, _type=f)[
+                            ..., None]
+                        if random.randint(0, 1) == 0:
+                            lowpass_data.append(
+                                lowpass(data[..., 0], highcut=c, fs=self.hp["data"]["sampling_rate"], order=o, _type="stft")[
+                                    ..., None])
+                        else:
+                            lowpass_data.append(data)
+                ret[key + "_LR"] = stack_convert(lowpass_data)
         return ret
 
 
@@ -95,11 +112,14 @@ class SrRandSampleRate(pl.LightningDataModule):
         if(stage == 'fit' or stage is None):
             self.train = eval(self.train_loader)(frame_length=self.hp["train"]["input_segment_length"],
                                                    sample_rate=self.hp["data"]["sampling_rate"],
-                                                    type_of_sources=self.hp["data"]["source_types"],
+                                                   type_of_sources=self.hp["data"]["source_types"],
                                                    data=self.hp["data"]["train_dataset"],
                                                    aug_conf=self.hp["augment"]["params"],
                                                    aug_sources=self.hp["augment"]["source"],
                                                    aug_effects=self.hp["augment"]["effects"],
+                                                   aug_global_conf=self.hp["augment_global"]["params"],
+                                                   aug_global_sources=self.hp["augment_global"]["source"],
+                                                   aug_global_effects=self.hp["augment_global"]["effects"],
                                                    hours_for_an_epoch = self.hp["train"]["hours_of_data_for_an_epoch"])
 
             val_datasets = []

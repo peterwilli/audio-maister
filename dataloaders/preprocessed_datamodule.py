@@ -11,8 +11,8 @@ class PreProcessedDataModule(pl.LightningDataModule):
         self.dataset_val = dataset_val
         self.batch_size = batch_size
 
-    def transform(self, example):
-        return { k: [torch.tensor(example[k][i]["array"]).unsqueeze(1) for i in range(len(example[k]))] for k in example }
+    def transform(self, item):
+        return { k: [torch.tensor(item[k][i]["array"], dtype=torch.float32).unsqueeze(0) for i in range(len(item[k]))] for k in item }
 
     def train_dataloader(self) -> DataLoader:
         dataset = self.dataset_train.with_transform(self.transform)

@@ -76,13 +76,7 @@ class initLogDir(Callback):
         self.init_path(trainer,pl_module)
 
     def on_validation_start(self, trainer, pl_module: L.LightningModule) -> None:
-        if(not hasattr(pl_module,"val_step")):
-            raise AttributeError("pl_module need to have attribute val_step (track how many validation epoches have been done) set to use LogDir Callback")
-        if(not hasattr(pl_module,"check_val_every_n_epoch")):
-            raise AttributeError("pl_module need to have attribute check_val_every_n_epoch (the same value to check_val_every_n_epoch) set to use LogDir Callback")
-
         self.init_path(trainer,pl_module)
-        pl_module.val_step += 1
         # the save dir of all_mel_e2e validation steps
         pl_module.val_result_save_dir = os.path.join(pl_module.log_dir, "validations")
         os.makedirs(pl_module.val_result_save_dir, exist_ok=True)
