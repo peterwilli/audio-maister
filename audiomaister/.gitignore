@@ -1,0 +1,44 @@
+#some folders
+Exp_Results
+ig_*
+__pycache__
+checkpoints
+.idea
+#modules
+*_log
+trash
+_reload*
+events*
+
+
+# datasets
+musdb18hq
+musdb18
+datasets/se
+datasets/temp_path.json
+
+# Softwares
+WavAugment
+
+# some files
+.DS_Store
+*.zip
+*.pt
+*.npy
+*.mat
+*.ckpt
+*.wav
+*.pkf
+*.lst
+*.pkl
+*.mp3
+*.png
+*.jpg
+*.hdf5
+*.pyc
+*.txt
+
+# Tmp dataset folders
+/.dataset_gen_cache
+/logs
+/tmp_hf_dataset_train

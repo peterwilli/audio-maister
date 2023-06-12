@@ -1,0 +1,35 @@
+#!env python3
+import argparse
+from audiomaister import VoiceFixer
+from audiomaister.models.gs_audiomaister import AudioMaister
+import torch
+
+def load_default_weights():
+    from huggingface_hub import hf_hub_download
+    from pathlib import Path
+
+    REPO_ID = "peterwilli/audio-maister"
+    print(f"Loading standard model weight at {REPO_ID}")
+    MODEL_FILE_NAME = "audiomaister_v1.ckpt"
+    checkpoint_path = hf_hub_download(repo_id=REPO_ID, filename=MODEL_FILE_NAME)
+    return checkpoint_path
+
+@torch.no_grad()
+def main(input_file, output_file, checkpoint, **kwargs):
+    if checkpoint is None:
+        checkpoint = load_default_weights()
+    state = torch.load(checkpoint)
+    model = VoiceFixer(state['hparams'], 1, 'vocals')
+    model.load_state_dict(state['weights'])
+    model = AudioMaister(model)
+    model.restore(input=input_file, output=output_file, mode=0)       
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Audio Processing Script")
+    parser.add_argument("--input_file", help="Path to the input audio file (FLAC or WAV)", required=True)
+    parser.add_argument("--output_file", help="Path to the output audio file", required=True)
+    parser.add_argument("--checkpoint", help="Path to the model checkpoint file", required=False)
+
+    args = parser.parse_args()
+
+    main(**vars(args))
