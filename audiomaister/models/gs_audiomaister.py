@@ -123,4 +123,4 @@ class AudioMaister(torch.nn.Module):
         out_wav = self.restore_inmem(
             wav_10k, mode=mode, your_vocoder_func=your_vocoder_func
         )
-        save_wave(out_wav.numpy(), fname=output, sample_rate=44100)
+        save_wave(out_wav.cpu().numpy(), fname=output, sample_rate=44100)

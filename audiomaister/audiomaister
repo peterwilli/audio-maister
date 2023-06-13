@@ -15,20 +15,24 @@ def load_default_weights():
     return checkpoint_path
 
 @torch.no_grad()
-def main(input_file, output_file, checkpoint, **kwargs):
+def main(input_file, output_file, checkpoint, accelerator, **kwargs):
     if checkpoint is None:
         checkpoint = load_default_weights()
     state = torch.load(checkpoint)
-    model = VoiceFixer(state['hparams'], 1, 'vocals')
-    model.load_state_dict(state['weights'])
-    model = AudioMaister(model)
-    model.restore(input=input_file, output=output_file, mode=0)       
+    main_model = VoiceFixer(state['hparams'], 1, 'vocals')
+    main_model.load_state_dict(state['weights'])
+    inference_model = AudioMaister(main_model)
+    inference_model.restore(input=input_file, output=output_file, mode=0)       
+    if accelerator == 'cuda':
+        main_model.to('cuda')
+        inference_model.to('cuda')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Audio Processing Script")
     parser.add_argument("--input_file", help="Path to the input audio file (FLAC or WAV)", required=True)
     parser.add_argument("--output_file", help="Path to the output audio file", required=True)
     parser.add_argument("--checkpoint", help="Path to the model checkpoint file", required=False)
+    parser.add_argument("--accelerator", help="In case you use a hardware accelerator", choices=["cuda"], required=False)
 
     args = parser.parse_args()
 

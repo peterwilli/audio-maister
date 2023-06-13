@@ -24,7 +24,7 @@ Thanks to an improved augmentation and training loop, as well as a new dataset, 
 
 - Install the cli tool: `pip install git+https://github.com/peterwilli/audio-maister.git`
 - To restore an audio file called "input.wav" and save it to "fixed.wav", run `audiomaister --input_file input.wav --output_file fixed.wav`
-- That's it! You're ready to go.
+- That's it! You're ready to go. For GPU acceleration, you can append `--accelerator=cuda` to the `audiomaister` command.
 </details>
 
 <details>
