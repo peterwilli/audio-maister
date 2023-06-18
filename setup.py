@@ -1,11 +1,11 @@
 import setuptools
 setuptools.setup(
-    name='audio-maister',
+    name='audiomaister',
     version='1.0',
     scripts=['./audiomaister/audiomaister'],
     author='Peter Willemsen <peter@codebuffet.co>',
     description='General purpose audio restoration AI',
-    packages=['audiomaister'],
+    packages=setuptools.find_packages("."),
     license="GNU Affero General Public License v3.0",
     install_requires=[
         "GitPython",
@@ -21,5 +21,5 @@ setuptools.setup(
         "torch",
         "lightning"
     ],
-    python_requires='>=3.5'
+    python_requires='>=3.5',
 )
