@@ -12,6 +12,8 @@ AudiomAIster is a fork of [VoiceFixer](https://github.com/haoheliu/voicefixer) w
 
 Thanks to an improved augmentation and training loop, as well as a new dataset, I observed better performance than the original on my own videos with 100 epochs v.s 5000 and only 8% of the original dataset.
 
+[Try it out now on 🤗 Spaces!](https://huggingface.co/spaces/Raaniel/Audiomaister)
+
 <details>
 <summary>⚙️ Run locally</summary>
 
@@ -25,6 +27,20 @@ Thanks to an improved augmentation and training loop, as well as a new dataset, 
 - Install the cli tool: `pip install git+https://github.com/peterwilli/audio-maister.git`
 - To restore an audio file called "input.wav" and save it to "fixed.wav", run `audiomaister --input_file input.wav --output_file fixed.wav`
 - That's it! You're ready to go. For GPU acceleration, you can append `--accelerator=cuda` to the `audiomaister` command.
+</details>
+
+<details>
+<summary>📓 Changelog</summary>
+
+## V1.5
+
+ - Improved removal of distortion
+ - Makes voices sound less like a robot in some cases
+ - Drops low-volume audio less likely
+
+## V1
+
+ - First model
 </details>
 
 <details>
@@ -61,5 +77,5 @@ Not only will you get the satisfaction of supporting an individual's passions, b
 ## To do
 
 - [ ] Releasing training code + tutorial
-- [ ] HF space!
+- [x] HF space! (Thanks to @adolinska!)
 - [ ] Colab demo 

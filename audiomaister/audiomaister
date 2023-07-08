@@ -10,7 +10,7 @@ def load_default_weights():
 
     REPO_ID = "peterwilli/audio-maister"
     print(f"Loading standard model weight at {REPO_ID}")
-    MODEL_FILE_NAME = "audiomaister_v1.ckpt"
+    MODEL_FILE_NAME = "audiomaister_v1.5.ckpt"
     checkpoint_path = hf_hub_download(repo_id=REPO_ID, filename=MODEL_FILE_NAME)
     return checkpoint_path
 
