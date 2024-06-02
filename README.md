@@ -19,7 +19,7 @@ Thanks to an improved augmentation and training loop, as well as a new dataset, 
 
 ## Requirements
 
- - Basic knowledge of a (Linux) terminal
+ - ~~Basic knowledge of a (Linux) terminal~~
  - Working git, python3 and pytorch installation (other dependencies automatically are installed)
 
 ## Inference
