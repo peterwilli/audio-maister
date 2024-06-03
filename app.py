@@ -30,6 +30,8 @@ def inference(input_file, **kwargs):
     if USE_CUDA:
         main_model.to('cuda')
         inference_model.to('cuda')
+    else:
+        print('error loading model to cuda')
 
     return "out.wav"
 
@@ -54,4 +56,4 @@ gr.Interface(
     description = desc,
     article = made,
     theme=gr.themes.Soft(primary_hue="purple",secondary_hue="violet", neutral_hue="neutral")
-).launch()
+).launch(inbrowser=True)
