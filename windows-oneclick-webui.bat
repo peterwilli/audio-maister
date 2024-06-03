@@ -18,7 +18,8 @@ IF NOT "%VIRTUAL_ENV%" == "" (
     ECHO Virtual environment activated.
     ECHO Installing dependencies...
     %python% -m pip install --upgrade pip
-    %python% -m pip install -r requirements.txt
+    %python% -m pip install -r requirements.txt 
+    %python% -m pip install gradio==3.50.2
     ECHO Dependencies installed.
     
     REM Run the Python script
